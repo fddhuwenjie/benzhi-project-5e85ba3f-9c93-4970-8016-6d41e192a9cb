@@ -121,7 +121,13 @@ func cloneWitness(w *domain.WitnessReview) *domain.WitnessReview {
 	}
 	cloned := *w
 	cloned.RemediationEvidence = append([]string(nil), w.RemediationEvidence...)
-	cloned.Issues = w.Issues
+	cloned.Issues = make([]domain.WitnessIssue, len(w.Issues))
+	for i := range w.Issues {
+		issue := w.Issues[i]
+		issue.EvidenceHistory = append([]domain.WitnessEvidence(nil), w.Issues[i].EvidenceHistory...)
+		issue.ResolutionHistory = append([]domain.WitnessResolution(nil), w.Issues[i].ResolutionHistory...)
+		cloned.Issues[i] = issue
+	}
 	return &cloned
 }
 func (s *SQLiteStore) Create(ctx context.Context, c Commit) error {
