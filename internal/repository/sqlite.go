@@ -89,9 +89,19 @@ func (s *SQLiteStore) Create(ctx context.Context, c Commit) error {
 		return domain.ErrConflict
 	}
 	s.releases[c.Release.ID] = cloneRelease(c.Release)
-	s.events[c.Release.ID] = append(s.events[c.Release.ID], c.Event)
+	prevEvents := s.events[c.Release.ID]
+	s.events[c.Release.ID] = append(prevEvents, c.Event)
 	s.idempotent[c.Idempotency.RequestID] = c.Idempotency
-	return s.persistLocked()
+	if err := s.persistLocked(); err != nil {
+		delete(s.releases, c.Release.ID)
+		s.events[c.Release.ID] = prevEvents
+		if len(s.events[c.Release.ID]) == 0 {
+			delete(s.events, c.Release.ID)
+		}
+		delete(s.idempotent, c.Idempotency.RequestID)
+		return err
+	}
+	return nil
 }
 func (s *SQLiteStore) Load(ctx context.Context, id string) (*domain.TestRelease, error) {
 	s.mu.RLock()
@@ -154,13 +164,36 @@ func (s *SQLiteStore) Commit(ctx context.Context, c Commit) error {
 	if r.Revision != c.ExpectedRevision {
 		return domain.ErrConflict
 	}
+	prevRelease := s.releases[c.Release.ID]
+	prevEvents := s.events[c.Release.ID]
+	prevIdempotent, hadIdempotent := s.idempotent[c.Idempotency.RequestID]
+	prevEvidence, hadEvidence := s.evidence[c.Release.ID]
+
 	s.releases[c.Release.ID] = cloneRelease(c.Release)
 	s.events[c.Release.ID] = append(s.events[c.Release.ID], c.Event)
 	s.idempotent[c.Idempotency.RequestID] = c.Idempotency
 	if len(c.Evidence) > 0 {
 		s.evidence[c.Release.ID] = evidenceItem{c.Evidence, c.EvidenceDigest}
 	}
-	return s.persistLocked()
+	if err := s.persistLocked(); err != nil {
+		s.releases[c.Release.ID] = prevRelease
+		s.events[c.Release.ID] = prevEvents
+		if len(s.events[c.Release.ID]) == 0 {
+			delete(s.events, c.Release.ID)
+		}
+		if hadIdempotent {
+			s.idempotent[c.Idempotency.RequestID] = prevIdempotent
+		} else {
+			delete(s.idempotent, c.Idempotency.RequestID)
+		}
+		if hadEvidence {
+			s.evidence[c.Release.ID] = prevEvidence
+		} else if len(c.Evidence) > 0 {
+			delete(s.evidence, c.Release.ID)
+		}
+		return err
+	}
+	return nil
 }
 func (s *SQLiteStore) FindIdempotency(ctx context.Context, id string) (*IdempotencyRecord, error) {
 	s.mu.RLock()
