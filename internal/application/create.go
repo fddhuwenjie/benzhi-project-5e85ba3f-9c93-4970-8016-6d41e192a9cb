@@ -46,6 +46,13 @@ func (s *Service) Create(ctx context.Context, input CreateInput) (*Result, error
 	if err != nil {
 		return nil, err
 	}
+	// Honor request cancellation before persisting: if the client disconnected
+	// after validation but before the release is created, the mutation must not
+	// land. The store call itself stays detached so that once we decide to
+	// commit it completes for idempotent replay on retry.
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
 	err = s.store.Create(context.WithoutCancel(ctx), repository.Commit{Release: release, ExpectedRevision: 0, Event: event, Idempotency: record})
 	if err != nil {
 		if replayed, ok, replayErr := s.replay(context.WithoutCancel(ctx), input.RequestID, operation, fp); replayErr == nil && ok {

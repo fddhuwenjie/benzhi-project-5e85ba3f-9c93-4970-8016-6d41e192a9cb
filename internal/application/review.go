@@ -119,6 +119,12 @@ func (s *Service) Authorize(ctx context.Context, id string, input AuthorizationI
 	if err != nil {
 		return nil, err
 	}
+	// Honor request cancellation before persisting: if the client disconnected
+	// after the release was loaded but before the transaction is committed, the
+	// mutation must not land and no new revision should be produced.
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
 	err = s.store.Commit(context.WithoutCancel(ctx), repository.Commit{Release: release, ExpectedRevision: input.ExpectedRevision, Event: event, Idempotency: record, Evidence: evidence, EvidenceDigest: digest})
 	if err != nil {
 		return nil, err

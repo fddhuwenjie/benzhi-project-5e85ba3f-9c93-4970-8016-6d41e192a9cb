@@ -79,6 +79,12 @@ func (s *Service) ReplaceChannels(ctx context.Context, id string, input ChannelB
 	event := s.audit.Event(id, "channels.batch_replaced", input.Actor, input.Role, from, r.Status, r.Revision, map[string]any{"checks": checks})
 	result := &Result{Release: r, Event: event}
 	record, _ := makeRecord(input.CommandMeta, "channels.replace", fp, result)
+	// Honor request cancellation before persisting: if the client disconnected
+	// after the release was loaded but before the transaction is committed, the
+	// mutation must not land and no new revision should be produced.
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
 	if err := s.store.Commit(context.WithoutCancel(ctx), repository.Commit{Release: r, ExpectedRevision: input.ExpectedRevision, Event: event, Idempotency: record}); err != nil {
 		return nil, err
 	}

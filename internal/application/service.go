@@ -128,6 +128,14 @@ func (s *Service) mutate(ctx context.Context, releaseID, operation string, meta 
 	if err != nil {
 		return nil, err
 	}
+	// Honor request cancellation before persisting: if the client disconnected
+	// after the release was loaded but before the transaction is committed, the
+	// mutation must not land and no new revision should be produced. The store
+	// call itself stays detached so that once we decide to commit it completes
+	// for idempotent replay on retry.
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
 	err = s.store.Commit(context.WithoutCancel(ctx), repository.Commit{Release: release, ExpectedRevision: meta.ExpectedRevision, Event: event, Idempotency: record})
 	if err != nil {
 		if replayed, ok, replayErr := s.replay(context.WithoutCancel(ctx), meta.RequestID, operation, fp); replayErr == nil && ok {
