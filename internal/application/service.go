@@ -68,6 +68,12 @@ func fingerprint(operation string, input any) (string, error) {
 	return hex.EncodeToString(sum[:]), nil
 }
 
+func (s *Service) invalidateChecklist(releaseID string) {
+	s.checklistMu.Lock()
+	delete(s.checklists, releaseID)
+	s.checklistMu.Unlock()
+}
+
 func (s *Service) replay(ctx context.Context, requestID, operation, fp string) (*Result, bool, error) {
 	record, err := s.store.FindIdempotency(ctx, requestID)
 	if errors.Is(err, domain.ErrNotFound) {
@@ -138,5 +144,6 @@ func (s *Service) mutate(ctx context.Context, releaseID, operation string, meta 
 		}
 		return nil, err
 	}
+	s.invalidateChecklist(release.ID)
 	return result, nil
 }

@@ -56,6 +56,7 @@ func (s *Service) Create(ctx context.Context, input CreateInput) (*Result, error
 		}
 		return nil, err
 	}
+	s.invalidateChecklist(release.ID)
 	return result, nil
 }
 

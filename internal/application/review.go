@@ -123,5 +123,6 @@ func (s *Service) Authorize(ctx context.Context, id string, input AuthorizationI
 	if err != nil {
 		return nil, err
 	}
+	s.invalidateChecklist(release.ID)
 	return result, nil
 }

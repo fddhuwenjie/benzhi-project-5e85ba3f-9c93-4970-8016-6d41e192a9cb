@@ -82,6 +82,7 @@ func (s *Service) ReplaceChannels(ctx context.Context, id string, input ChannelB
 	if err := s.store.Commit(ctx, repository.Commit{Release: r, ExpectedRevision: input.ExpectedRevision, Event: event, Idempotency: record}); err != nil {
 		return nil, err
 	}
+	s.invalidateChecklist(r.ID)
 	return result, nil
 }
 
