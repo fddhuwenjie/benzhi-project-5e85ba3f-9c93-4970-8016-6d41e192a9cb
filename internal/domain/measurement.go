@@ -30,11 +30,21 @@ func (r *TestRelease) PutChannel(channel MeasurementChannel, now time.Time) erro
 		return Invalid("calibration", "校准时间与有效期无效")
 	}
 	channel.VerificationStatus = channelStatus(channel, r.Envelope, now)
+	replaceAt := -1
 	for i := range r.Channels {
-		if r.Channels[i].ID == channel.ID || r.Channels[i].ChannelType == channel.ChannelType {
-			r.Channels[i] = channel
-			return nil
+		sameID := r.Channels[i].ID == channel.ID
+		sameType := r.Channels[i].ChannelType == channel.ChannelType
+		if sameID && sameType {
+			replaceAt = i
+			continue
 		}
+		if sameID || sameType {
+			return Invalid("channel", "通道 ID 或类型与已有通道交叉冲突，仅允许同 ID 且同类型的替换")
+		}
+	}
+	if replaceAt >= 0 {
+		r.Channels[replaceAt] = channel
+		return nil
 	}
 	r.Channels = append(r.Channels, channel)
 	sort.Slice(r.Channels, func(i, j int) bool { return r.Channels[i].ChannelType < r.Channels[j].ChannelType })
