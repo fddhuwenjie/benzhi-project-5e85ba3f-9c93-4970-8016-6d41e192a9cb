@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>风洞试验安全放行台</title>
+  <link rel="stylesheet" href="/assets/app.css">
+</head>
+<body>
+  <header class="topbar">
+    <div><span class="mark">WT</span><h1>风洞试验安全放行台</h1></div>
+    <div id="health" class="health">服务检查中</div>
+  </header>
+  <main class="layout">
+    <aside class="sidebar">
+      <div class="side-title"><h2>试验档案</h2><button id="newRelease" class="icon" title="新建试验档案" aria-label="新建试验档案">＋</button></div>
+      <div id="releaseList" class="release-list"><p class="muted">正在加载档案</p></div>
+    </aside>
+    <section class="workspace">
+      <div id="notice" class="notice hidden" role="alert"></div>
+      <div id="emptyState" class="empty"><p class="eyebrow">执行前安全门禁</p><h2>选择档案或创建新的放行流程</h2><p>每项结论都将写入修订链和审计时间线。</p></div>
+      <div id="releaseView" class="hidden">
+        <section class="summary-band"><div><p class="eyebrow" id="releaseCode"></p><h2 id="releaseTitle"></h2><p id="releaseMeta"></p></div><div class="status-block"><span id="statusBadge" class="status"></span><span id="revisionBadge"></span></div></section>
+        <nav id="steps" class="steps" aria-label="放行阶段"></nav>
+        <div class="work-grid">
+          <section class="stage-panel"><div class="panel-heading"><div><p class="eyebrow">当前任务</p><h3 id="stageTitle"></h3></div><span id="roleTag" class="role"></span></div><div id="stageBody"></div></section>
+          <aside class="gate-panel"><h3>门禁状态</h3><ul id="gateList"></ul><h3>档案摘要</h3><dl id="profileSummary"></dl></aside>
+        </div>
+        <section class="audit-panel"><div class="panel-heading"><div><p class="eyebrow">不可变记录</p><h3>审计时间线</h3></div><div class="audit-controls"><select id="auditFilter" aria-label="筛选事件类型"><option value="">全部事件</option><option value="release.created">建档</option><option value="envelope.evaluated">边界</option><option value="channel.verified">通道</option><option value="drill.recorded">联锁</option><option value="witness.signed">见证</option><option value="release.authorized">授权</option></select><select id="auditRole" aria-label="筛选角色"><option value="">全部角色</option><option value="owner">负责人</option><option value="engineer">工程师</option><option value="witness">见证员</option><option value="authorizer">授权人</option></select><input id="auditActor" placeholder="操作者"><input id="auditFromRevision" type="number" min="1" placeholder="起始 revision"></div></div><div id="auditStats" class="muted"></div><div id="auditTimeline" class="timeline"></div></section>
+      </div>
+    </section>
+  </main>
+  <dialog id="createDialog"><form id="createForm" method="dialog"><div class="dialog-head"><h2>创建试验档案</h2><button value="cancel" class="icon" aria-label="关闭">×</button></div><label>试验标题<input name="title" required maxlength="120"></label><label>试验目标<textarea name="objective" required></textarea></label><div class="fields"><label>模型标识<input name="model_code" required></label><label>责任人<input name="owner" required></label></div><label>计划工况<textarea name="planned_condition" required></textarea></label><div class="actions"><button value="cancel" class="secondary">取消</button><button id="createSubmit" value="default">创建档案</button></div></form></dialog>
+  <script src="/assets/app.js" defer></script>
+</body>
+</html>
