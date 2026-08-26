@@ -1,0 +1,67 @@
+package application
+
+import (
+	"context"
+	"sort"
+	"time"
+
+	"windtunnel-release/internal/audit"
+	"windtunnel-release/internal/domain"
+	"windtunnel-release/internal/repository"
+)
+
+func (s *Service) Get(ctx context.Context, id string) (*Summary, error) {
+	release, err := s.store.Load(ctx, id)
+	if err != nil {
+		return nil, err
+	}
+	summary := &Summary{Release: release, StatusLabel: release.Status.Label(), PendingGates: release.GateSummary(s.now())}
+	if release.Status == domain.StatusReleased {
+		summary.EvidenceURL = "/api/releases/" + release.ID + "/evidence"
+		summary.PendingGates = []string{}
+	}
+	return summary, nil
+}
+
+func (s *Service) List(ctx context.Context, limit, offset int) (domain.Page[domain.TestRelease], error) {
+	return s.store.List(ctx, limit, offset)
+}
+
+func (s *Service) Audit(ctx context.Context, id, eventType string, limit, offset int) (domain.Page[domain.AuditEvent], error) {
+	return s.store.Audit(ctx, id, eventType, limit, offset)
+}
+
+func (s *Service) QueryAudit(ctx context.Context, id string, filter repository.AuditFilter) (repository.AuditView, error) {
+	view, err := s.store.QueryAudit(ctx, id, filter)
+	if err != nil {
+		return repository.AuditView{}, err
+	}
+	for i := range view.Items {
+		checks, ok := view.Items[i].Details["checks"].([]domain.ChannelCheck)
+		if !ok {
+			continue
+		}
+		sort.SliceStable(checks, func(left, right int) bool {
+			return checks[left].ChannelType < checks[right].ChannelType
+		})
+	}
+	return view, nil
+}
+
+func (s *Service) Evidence(ctx context.Context, id string) ([]byte, string, error) {
+	data, digest, err := s.store.Evidence(ctx, id)
+	if err != nil {
+		return nil, "", err
+	}
+	if err := audit.VerifyEvidence(data, digest); err != nil {
+		return nil, "", err
+	}
+	return data, digest, nil
+}
+
+func (s *Service) Health(ctx context.Context) error {
+	ctx, cancel := context.WithTimeout(ctx, time.Second)
+	defer cancel()
+	_, err := s.store.List(ctx, 1, 0)
+	return err
+}
